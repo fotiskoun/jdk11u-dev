@@ -13,3 +13,10 @@ test/nashorn/lib
 NashornProfile.txt
 **/JTreport/**
 **/JTwork/**
+make/hs_err*
+make/core*
+hs_err*
+core.*
+.gdbinit
+config.log
+configure.log

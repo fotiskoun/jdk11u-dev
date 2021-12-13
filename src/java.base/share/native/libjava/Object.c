@@ -40,11 +40,12 @@
 #include "java_lang_Object.h"
 
 static JNINativeMethod methods[] = {
-    {"hashCode",    "()I",                    (void *)&JVM_IHashCode},
-    {"wait",        "(J)V",                   (void *)&JVM_MonitorWait},
-    {"notify",      "()V",                    (void *)&JVM_MonitorNotify},
-    {"notifyAll",   "()V",                    (void *)&JVM_MonitorNotifyAll},
-    {"clone",       "()Ljava/lang/Object;",   (void *)&JVM_Clone},
+        {"hashCode",  "()I",                  (void *) &JVM_IHashCode},
+        {"wait",      "(J)V",                 (void *) &JVM_MonitorWait},
+        {"fun",       "(Ljava/lang/Object;)I",(void *) &JVM_Fun},
+        {"notify",    "()V",                  (void *) &JVM_MonitorNotify},
+        {"clone",     "()Ljava/lang/Object;", (void *) &JVM_Clone},
+        {"notifyAll", "()V",                  (void *) &JVM_MonitorNotifyAll},
 };
 
 JNIEXPORT void JNICALL

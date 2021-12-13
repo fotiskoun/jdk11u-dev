@@ -744,6 +744,8 @@
    do_name(     notify_name,                                     "notify")                                              \
   do_intrinsic(_notifyAll,                java_lang_Object,       notifyAll_name, void_method_signature,         F_R)   \
    do_name(     notifyAll_name,                                  "notifyAll")                                           \
+  do_intrinsic(_fun,                      java_lang_Object,       fun_name, object_int_signature,               F_R)   \
+   do_name(     fun_name,                                        "fun")                                                 \
                                                                                                                         \
   /* Math & StrictMath intrinsics are defined in terms of just a few signatures: */                                     \
   do_class(java_lang_Math,                "java/lang/Math")                                                             \

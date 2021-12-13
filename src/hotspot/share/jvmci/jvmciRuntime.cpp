@@ -391,6 +391,15 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* o
 
 JRT_END
 
+// Object.fun() fast path, caller does slow path
+JRT_LEAF(jint, JVMCIRuntime::object_fun(JavaThread* thread, oopDesc* obj))
+
+ //do something
+ printf("This is called\n");
+  return 7;
+
+JRT_END
+
 JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);

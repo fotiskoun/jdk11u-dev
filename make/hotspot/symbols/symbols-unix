@@ -154,6 +154,7 @@ JVM_LoadLibrary
 JVM_MaxMemory
 JVM_MaxObjectInspectionAge
 JVM_MonitorNotify
+JVM_Fun
 JVM_MonitorNotifyAll
 JVM_MonitorWait
 JVM_MoreStackWalk

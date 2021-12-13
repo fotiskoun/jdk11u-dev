@@ -88,6 +88,7 @@ void vmSymbols::initialize(TRAPS) {
       string += strlen(string); // skip string body
       string += 1;              // skip trailing null
     }
+    Symbol* sym = SymbolTable::new_permanent_symbol("fun", CHECK);
 
     _type_signatures[T_BYTE]    = byte_signature();
     _type_signatures[T_CHAR]    = char_signature();

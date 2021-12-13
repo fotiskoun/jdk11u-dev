@@ -313,6 +313,29 @@ public class Object {
      * In all respects, this method behaves as if {@code wait(0L, 0)}
      * had been called. See the specification of the {@link #wait(long, int)} method
      * for details.
+     * @throws IllegalMonitorStateException if the current thread is not
+     *         the owner of the object's monitor
+     * @throws InterruptedException if any thread interrupted the current thread before or
+     *         while the current thread was waiting. The <em>interrupted status</em> of the
+     *         current thread is cleared when this exception is thrown.
+     * @param   obj   the reference object with which to compare.
+     * @return  {@code true} if this object is the same as the obj
+     * @see    #notify()
+     * @see    #notifyAll()
+     * @see    #wait(long)
+     * @see    #wait(long, int)
+     */
+    @HotSpotIntrinsicCandidate
+    public final native int fun(Object obj);
+
+
+    /**
+     * Causes the current thread to wait until it is awakened, typically
+     * by being <em>notified</em> or <em>interrupted</em>.
+     * <p>
+     * In all respects, this method behaves as if {@code wait(0L, 0)}
+     * had been called. See the specification of the {@link #wait(long, int)} method
+     * for details.
      *
      * @throws IllegalMonitorStateException if the current thread is not
      *         the owner of the object's monitor

@@ -136,6 +136,7 @@ class JVMCIRuntime: public AllStatic {
   static void monitorexit (JavaThread* thread, oopDesc* obj, BasicLock* lock);
   static jboolean object_notify(JavaThread* thread, oopDesc* obj);
   static jboolean object_notifyAll(JavaThread* thread, oopDesc* obj);
+  static jint object_fun(JavaThread* thread, oopDesc* obj);
   static void vm_error(JavaThread* thread, jlong where, jlong format, jlong value);
   static oopDesc* load_and_clear_exception(JavaThread* thread);
   static void log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3);

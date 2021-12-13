@@ -77,6 +77,9 @@ JVM_GetInterfaceVersion(void);
 JNIEXPORT jint JNICALL
 JVM_IHashCode(JNIEnv *env, jobject obj);
 
+JNIEXPORT jint JNICALL
+JVM_Fun(JNIEnv* env, jobject handle,  jobject x);
+
 JNIEXPORT void JNICALL
 JVM_MonitorWait(JNIEnv *env, jobject obj, jlong ms);
 

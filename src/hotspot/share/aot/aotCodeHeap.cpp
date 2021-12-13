@@ -466,6 +466,7 @@ void AOTCodeHeap::link_shared_runtime_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_register_finalizer", address, SharedRuntime::register_finalizer);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_object_notify", address, JVMCIRuntime::object_notify);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_object_notifyAll", address, JVMCIRuntime::object_notifyAll);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_object_fun", address, JVMCIRuntime::object_fun);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_OSR_migration_end", address, SharedRuntime::OSR_migration_end);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_enable_stack_reserved_zone", address, SharedRuntime::enable_stack_reserved_zone);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_resolve_dynamic_invoke", address, CompilerRuntime::resolve_dynamic_invoke);

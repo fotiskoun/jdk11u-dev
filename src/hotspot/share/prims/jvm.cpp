@@ -609,6 +609,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
 JVM_END
 
 
+
 JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   JVMWrapper("JVM_MonitorWait");
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
@@ -632,6 +633,14 @@ JVM_ENTRY(void, JVM_MonitorNotify(JNIEnv* env, jobject handle))
   ObjectSynchronizer::notify(obj, CHECK);
 JVM_END
 
+
+JVM_ENTRY(jint, JVM_Fun(JNIEnv* env, jobject handle,  jobject x))
+  JVMWrapper("JVM_Fun");
+  printf("not fun");
+  // as implemented in the classic virtual machine; return 0 if object is NULL
+  return 19;
+
+JVM_END
 
 JVM_ENTRY(void, JVM_MonitorNotifyAll(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_MonitorNotifyAll");
