@@ -744,7 +744,7 @@
    do_name(     notify_name,                                     "notify")                                              \
   do_intrinsic(_notifyAll,                java_lang_Object,       notifyAll_name, void_method_signature,         F_R)   \
    do_name(     notifyAll_name,                                  "notifyAll")                                           \
-  do_intrinsic(_fun,                      java_lang_Object,       fun_name, object_int_signature,               F_R)   \
+  do_intrinsic(_fun,                      java_lang_Object,       fun_name, object_int_signature,                F_R)   \
    do_name(     fun_name,                                        "fun")                                                 \
                                                                                                                         \
   /* Math & StrictMath intrinsics are defined in terms of just a few signatures: */                                     \
@@ -756,6 +756,14 @@
   do_signature(float3_float_signature,    "(FFF)F")                                                                     \
   do_signature(int2_int_signature,        "(II)I")                                                                      \
   do_signature(long2_long_signature,      "(JJ)J")                                                                      \
+  do_signature(iar2_int2_bool_signature,  "([I[III)Z")                                                                  \
+  do_signature(iar_iar_signature,         "([I)[I")                                                                     \
+                                                                                                                        \
+  do_intrinsic(_hash_put,                 java_lang_Object,       hash_put_name, iar2_int2_bool_signature,   F_R)       \
+   do_name(     hash_put_name,                                   "hash_put")                                            \
+  do_intrinsic(_hash_get,                 java_lang_Object,       hash_get_name, iar_iar_signature,          F_R)       \
+   do_name(     hash_get_name,                                   "hash_get")                                            \
+                                                                                                                        \
                                                                                                                         \
   /* here are the math names, all together: */                                                                          \
   do_name(abs_name,"abs")       do_name(sin_name,"sin")         do_name(cos_name,"cos")                                 \

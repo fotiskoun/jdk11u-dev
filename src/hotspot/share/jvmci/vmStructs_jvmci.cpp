@@ -646,6 +646,8 @@
   declare_function(JVMCIRuntime::object_notify) \
   declare_function(JVMCIRuntime::object_notifyAll) \
   declare_function(JVMCIRuntime::object_fun) \
+  declare_function(JVMCIRuntime::object_hash_put) \
+  declare_function(JVMCIRuntime::object_hash_get) \
   declare_function(JVMCIRuntime::throw_and_post_jvmti_exception) \
   declare_function(JVMCIRuntime::throw_klass_external_name_exception) \
   declare_function(JVMCIRuntime::throw_class_cast_exception) \

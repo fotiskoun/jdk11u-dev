@@ -21,6 +21,7 @@
  * questions.
  */
 
+
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "asm/codeBuffer.hpp"
@@ -50,13 +51,19 @@
 #include "utilities/debug.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
+
 #if INCLUDE_G1GC
+
 #include "gc/g1/g1ThreadLocalData.hpp"
+
 #endif // INCLUDE_G1GC
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
 #endif
+
+#define CAPACITY 50000 // Size of the Hash Table
+
 
 jobject JVMCIRuntime::_HotSpotJVMCIRuntime_instance = NULL;
 bool JVMCIRuntime::_HotSpotJVMCIRuntime_initialized = false;
@@ -69,19 +76,28 @@ BasicType JVMCIRuntime::kindToBasicType(Handle kind, TRAPS) {
     THROW_(vmSymbols::java_lang_NullPointerException(), T_ILLEGAL);
   }
   jchar ch = JavaKind::typeChar(kind);
-  switch(ch) {
-    case 'Z': return T_BOOLEAN;
-    case 'B': return T_BYTE;
-    case 'S': return T_SHORT;
-    case 'C': return T_CHAR;
-    case 'I': return T_INT;
-    case 'F': return T_FLOAT;
-    case 'J': return T_LONG;
-    case 'D': return T_DOUBLE;
-    case 'A': return T_OBJECT;
-    case '-': return T_ILLEGAL;
-    default:
-      JVMCI_ERROR_(T_ILLEGAL, "unexpected Kind: %c", ch);
+  switch (ch) {
+    case 'Z':
+      return T_BOOLEAN;
+    case 'B':
+      return T_BYTE;
+    case 'S':
+      return T_SHORT;
+    case 'C':
+      return T_CHAR;
+    case 'I':
+      return T_INT;
+    case 'F':
+      return T_FLOAT;
+    case 'J':
+      return T_LONG;
+    case 'D':
+      return T_DOUBLE;
+    case 'A':
+      return T_OBJECT;
+    case '-':
+      return T_ILLEGAL;
+    default: JVMCI_ERROR_(T_ILLEGAL, "unexpected Kind: %c", ch);
   }
 }
 
@@ -89,7 +105,7 @@ BasicType JVMCIRuntime::kindToBasicType(Handle kind, TRAPS) {
 // entered the VM has been deoptimized
 
 static bool caller_is_deopted() {
-  JavaThread* thread = JavaThread::current();
+  JavaThread *thread = JavaThread::current();
   RegisterMap reg_map(thread, false);
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
@@ -99,8 +115,8 @@ static bool caller_is_deopted() {
 
 // Stress deoptimization
 static void deopt_caller() {
-  if ( !caller_is_deopted()) {
-    JavaThread* thread = JavaThread::current();
+  if (!caller_is_deopted()) {
+    JavaThread *thread = JavaThread::current();
     RegisterMap reg_map(thread, false);
     frame runtime_frame = thread->last_frame();
     frame caller_frame = runtime_frame.sender(&reg_map);
@@ -109,54 +125,54 @@ static void deopt_caller() {
   }
 }
 
-JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_instance(JavaThread* thread, Klass* klass))
+JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_instance(JavaThread * thread, Klass * klass))
   JRT_BLOCK;
-  assert(klass->is_klass(), "not a class");
-  Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
-  InstanceKlass* ik = InstanceKlass::cast(klass);
-  ik->check_valid_for_instantiation(true, CHECK);
-  // make sure klass is initialized
-  ik->initialize(CHECK);
-  // allocate instance and return via TLS
-  oop obj = ik->allocate_instance(CHECK);
-  thread->set_vm_result(obj);
+    assert(klass->is_klass(), "not a class");
+    Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
+    InstanceKlass *ik = InstanceKlass::cast(klass);
+    ik->check_valid_for_instantiation(true, CHECK);
+    // make sure klass is initialized
+    ik->initialize(CHECK);
+    // allocate instance and return via TLS
+    oop obj = ik->allocate_instance(CHECK);
+    thread->set_vm_result(obj);
   JRT_BLOCK_END;
   SharedRuntime::on_slowpath_allocation_exit(thread);
 JRT_END
 
-JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread* thread, Klass* array_klass, jint length))
+JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread * thread, Klass * array_klass, jint length))
   JRT_BLOCK;
-  // Note: no handle for klass needed since they are not used
-  //       anymore after new_objArray() and no GC can happen before.
-  //       (This may have to change if this code changes!)
-  assert(array_klass->is_klass(), "not a class");
-  oop obj;
-  if (array_klass->is_typeArray_klass()) {
-    BasicType elt_type = TypeArrayKlass::cast(array_klass)->element_type();
-    obj = oopFactory::new_typeArray(elt_type, length, CHECK);
-  } else {
-    Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
-    Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
-    obj = oopFactory::new_objArray(elem_klass, length, CHECK);
-  }
-  thread->set_vm_result(obj);
-  // This is pretty rare but this runtime patch is stressful to deoptimization
-  // if we deoptimize here so force a deopt to stress the path.
-  if (DeoptimizeALot) {
-    static int deopts = 0;
-    // Alternate between deoptimizing and raising an error (which will also cause a deopt)
-    if (deopts++ % 2 == 0) {
-      ResourceMark rm(THREAD);
-      THROW(vmSymbols::java_lang_OutOfMemoryError());
+    // Note: no handle for klass needed since they are not used
+    //       anymore after new_objArray() and no GC can happen before.
+    //       (This may have to change if this code changes!)
+    assert(array_klass->is_klass(), "not a class");
+    oop obj;
+    if (array_klass->is_typeArray_klass()) {
+      BasicType elt_type = TypeArrayKlass::cast(array_klass)->element_type();
+      obj = oopFactory::new_typeArray(elt_type, length, CHECK);
     } else {
-      deopt_caller();
+      Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
+      Klass *elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
+      obj = oopFactory::new_objArray(elem_klass, length, CHECK);
     }
-  }
+    thread->set_vm_result(obj);
+    // This is pretty rare but this runtime patch is stressful to deoptimization
+    // if we deoptimize here so force a deopt to stress the path.
+    if (DeoptimizeALot) {
+      static int deopts = 0;
+      // Alternate between deoptimizing and raising an error (which will also cause a deopt)
+      if (deopts++ % 2 == 0) {
+        ResourceMark rm(THREAD);
+        THROW(vmSymbols::java_lang_OutOfMemoryError());
+      } else {
+        deopt_caller();
+      }
+    }
   JRT_BLOCK_END;
   SharedRuntime::on_slowpath_allocation_exit(thread);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::new_multi_array(JavaThread* thread, Klass* klass, int rank, jint* dims))
+JRT_ENTRY(void, JVMCIRuntime::new_multi_array(JavaThread * thread, Klass * klass, int rank, jint * dims))
   assert(klass->is_klass(), "not a class");
   assert(rank >= 1, "rank must be nonzero");
   Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
@@ -164,13 +180,13 @@ JRT_ENTRY(void, JVMCIRuntime::new_multi_array(JavaThread* thread, Klass* klass, 
   thread->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::dynamic_new_array(JavaThread* thread, oopDesc* element_mirror, jint length))
+JRT_ENTRY(void, JVMCIRuntime::dynamic_new_array(JavaThread * thread, oopDesc * element_mirror, jint length))
   oop obj = Reflection::reflect_new_array(element_mirror, length, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::dynamic_new_instance(JavaThread* thread, oopDesc* type_mirror))
-  InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(type_mirror));
+JRT_ENTRY(void, JVMCIRuntime::dynamic_new_instance(JavaThread * thread, oopDesc * type_mirror))
+  InstanceKlass *klass = InstanceKlass::cast(java_lang_Class::as_Klass(type_mirror));
 
   if (klass == NULL) {
     ResourceMark rm(THREAD);
@@ -205,7 +221,8 @@ extern void vm_exit(int code);
 // been deoptimized. If that is the case we return the deopt blob
 // unpack_with_exception entry instead. This makes life for the exception blob easier
 // because making that same check and diverting is painful from assembly language.
-JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* thread, oopDesc* ex, address pc, CompiledMethod*& cm))
+JRT_ENTRY_NO_ASYNC(static address,
+                   exception_handler_for_pc_helper(JavaThread * thread, oopDesc * ex, address pc, CompiledMethod * &cm))
   // Reset method handle flag.
   thread->set_is_method_handle_return(false);
 
@@ -329,12 +346,12 @@ JRT_END
 // We are entering here from exception stub. We don't do a normal VM transition here.
 // We do it in a helper. This is so we can check to see if the nmethod we have just
 // searched for an exception handler has been deoptimized in the meantime.
-address JVMCIRuntime::exception_handler_for_pc(JavaThread* thread) {
+address JVMCIRuntime::exception_handler_for_pc(JavaThread *thread) {
   oop exception = thread->exception_oop();
   address pc = thread->exception_pc();
   // Still in Java mode
   DEBUG_ONLY(ResetNoHandleMark rnhm);
-  CompiledMethod* cm = NULL;
+  CompiledMethod *cm = NULL;
   address continuation = NULL;
   {
     // Enter VM mode by calling the helper
@@ -353,18 +370,18 @@ address JVMCIRuntime::exception_handler_for_pc(JavaThread* thread) {
   return continuation;
 }
 
-JRT_BLOCK_ENTRY(void, JVMCIRuntime::monitorenter(JavaThread* thread, oopDesc* obj, BasicLock* lock))
+JRT_BLOCK_ENTRY(void, JVMCIRuntime::monitorenter(JavaThread * thread, oopDesc * obj, BasicLock * lock))
   SharedRuntime::monitor_enter_helper(obj, lock, thread, JVMCIUseFastLocking);
 JRT_END
 
-JRT_LEAF(void, JVMCIRuntime::monitorexit(JavaThread* thread, oopDesc* obj, BasicLock* lock))
+JRT_LEAF(void, JVMCIRuntime::monitorexit(JavaThread * thread, oopDesc * obj, BasicLock * lock))
   assert(thread->last_Java_sp(), "last_Java_sp must be set");
   assert(oopDesc::is_oop(obj), "invalid lock object pointer dected");
   SharedRuntime::monitor_exit_helper(obj, lock, thread, JVMCIUseFastLocking);
 JRT_END
 
 // Object.notify() fast path, caller does slow path
-JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread *thread, oopDesc* obj))
+JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread * thread, oopDesc * obj))
 
   // Very few notify/notifyAll operations find any threads on the waitset, so
   // the dominant fast-path is to simply return.
@@ -380,9 +397,9 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread *thread, oopDesc* obj)
 JRT_END
 
 // Object.notifyAll() fast path, caller does slow path
-JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* obj))
+JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread * thread, oopDesc * obj))
 
-  if (!SafepointSynchronize::is_synchronizing() ) {
+  if (!SafepointSynchronize::is_synchronizing()) {
     if (ObjectSynchronizer::quick_notify(obj, thread, true)) {
       return true;
     }
@@ -391,105 +408,349 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* o
 
 JRT_END
 
+int gen_var = 5;
 // Object.fun() fast path, caller does slow path
-JRT_LEAF(jint, JVMCIRuntime::object_fun(JavaThread* thread, oopDesc* obj))
+JRT_LEAF(jint, JVMCIRuntime::object_fun(JavaThread * thread, oopDesc * obj))
 
- //do something
- printf("This is called\n");
-  return 7;
+  //do something
+  printf("This is called\n");
+  return gen_var;
 
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
+
+typedef struct {
+    int *key;
+    int *value;
+} item;
+
+int cmp(const void *a, const void *b) {
+  item *item_a = (item *) a;
+  item *item_b = (item *) b;
+  return item_a->key > item_b->key;
+}
+
+long hash_function(int *key) {
+  int len = 8;
+  int seed = 0;
+  static const uint32_t c1 = 0xcc9e2d51;
+  static const uint32_t c2 = 0x1b873593;
+  static const uint32_t r1 = 15;
+  static const uint32_t r2 = 13;
+  static const uint32_t m = 5;
+  static const uint32_t n = 0xe6546b64;
+
+  uint32_t hash = seed;
+
+  const int nblocks = len / 4;
+  const uint32_t *blocks = (const uint32_t *) key;
+  int i;
+  for (i = 0; i < nblocks; i++) {
+    uint32_t k = blocks[i];
+    k *= c1;
+    k = (k << r1) | (k >> (32 - r1));
+    k *= c2;
+    hash ^= k;
+    hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
+  }
+
+  const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
+  uint32_t k1 = 0;
+
+  switch (len & 3) {
+    case 3:
+      k1 ^= tail[2] << 16;
+    case 2:
+      k1 ^= tail[1] << 8;
+    case 1:
+      k1 ^= tail[0];
+
+      k1 *= c1;
+      k1 = (k1 << r1) | (k1 >> (32 - r1));
+      k1 *= c2;
+      hash ^= k1;
+  }
+
+  hash ^= len;
+  hash ^= (hash >> 16);
+  hash *= 0x85ebca6b;
+  hash ^= (hash >> 13);
+  hash *= 0xc2b2ae35;
+  hash ^= (hash >> 16);
+
+  return hash % CAPACITY;
+}
+
+typedef struct Ht_item Ht_item;
+
+struct Ht_item {
+    int *key;
+    int *value;
+};
+
+typedef struct HashTable HashTable;
+
+// Define the Hash Table here
+struct HashTable {
+    // Contains an array of pointers
+    // to items
+    Ht_item **items;
+    int size;
+    int count;
+};
+
+
+Ht_item *create_item(int *key, int *value, int sizeK, int sizeVal) {
+  // Creates a pointer to a new hash table item
+  Ht_item *item = (Ht_item *) malloc(sizeof(Ht_item));
+  item->key = (int *) malloc(sizeK * sizeof(int));
+  item->value = (int *) malloc(sizeVal * sizeof(int));
+
+  item->key = key;
+  item->value = value;
+
+  return item;
+}
+
+HashTable *create_table(int size) {
+  // Creates a new HashTable
+  HashTable *table = (HashTable *) malloc(sizeof(HashTable));
+  table->size = size;
+  table->count = 0;
+  table->items = (Ht_item **) calloc(table->size, sizeof(Ht_item *));
+  for (int i = 0; i < table->size; i++)
+    table->items[i] = NULL;
+
+  return table;
+}
+
+void free_item(Ht_item *item) {
+  // Frees an item
+  free(item->key);
+  free(item->value);
+  free(item);
+}
+
+void free_table(HashTable *table) {
+  // Frees the table
+  for (int i = 0; i < table->size; i++) {
+    Ht_item *item = table->items[i];
+    if (item != NULL)
+      free_item(item);
+  }
+
+  free(table->items);
+  free(table);
+}
+
+void handle_collision(HashTable *table, Ht_item *item, int index) {
+  for (int i = 1; i < CAPACITY; i++) {
+    Ht_item *current_item = table->items[(index + i) % CAPACITY];
+    if (current_item == NULL) {
+      table->items[(index + i) % CAPACITY] = item;
+      table->count++;
+      return;
+    }
+  }
+  printf("THE COLLISION COULD NOT BE RESOLVED");
+}
+
+bool ht_insert(HashTable *table, int *key, int *value, int sizeK, int sizeVal) {
+  // Create the item
+  Ht_item *item = create_item(key, value, sizeK, sizeVal);
+
+  // Compute the index
+  int index = hash_function(key);
+
+  Ht_item *current_item = table->items[index];
+  if (current_item == NULL) {
+    // Key does not exist.
+    if (table->count == table->size) {
+      // Hash Table Full
+      printf("INSERT ERROR: Hash Table is full\n");
+      free_item(item);
+      return false;
+    }
+    // Insert directly
+    table->items[index] = item;
+    table->count++;
+    return true;
+  } else {
+    // Scenario 1: We only need to update value
+    // TODO: DO WE NEED TO UPDATE A VALUE?
+//    if (key == current_item->key) {
+//      value = table->items[index]->value;
+//      return false;
+//    }
+//    else {
+    // Scenario 2: Collision
+    // We will handle case this a bit later
+    handle_collision(table, item, index);
+    return false;
+//    }
+  }
+}
+
+
+int *ht_search(HashTable *table, int *key) {
+  // Searches the key in the hashtable
+  // and returns NULL if it doesn't exist
+  int index = hash_function(key);
+  Ht_item *item = table->items[index];
+
+
+  // Ensure that we move to a non NULL item
+  if (item != NULL) {
+    if (item->key == key) {
+      return item->value;
+    } else {
+      //CHECK FOR COLLISIONS
+      for (int i = 1; i < CAPACITY; i++) {
+        Ht_item *collisionItem = table->items[(index + i) % CAPACITY];
+        if (collisionItem != NULL) {
+          if (collisionItem->key == key) {
+            return collisionItem->value;
+          }
+        } else {
+          //The item is not here
+          return NULL;
+        }
+      }
+    }
+  }
+  return NULL;
+}
+
+void print_search(HashTable *table, int *key) {
+  int *val;
+  if ((val = ht_search(table, key)) == NULL) {
+    printf("Key:%d does not exist\n", key[0]);
+    return;
+  } else {
+    printf("Key:%d, Value:%d\n", key[0], val[0]);
+  }
+}
+
+HashTable *ht = create_table(CAPACITY);
+
+// Object.hash_put() fast path, caller does slow path
+JRT_LEAF(jboolean,
+         JVMCIRuntime::object_hash_put(JavaThread * thread, jint * ar1, jint * ar2, jint sizeK, jint sizeVal))
+
+  printf("This is the put\n");
+  return ht_insert(ht, ar1, ar2, sizeK, sizeVal);
+
+JRT_END
+
+// Object.hash_get() fast path, caller does slow path
+JRT_LEAF(jint*, JVMCIRuntime::object_hash_get(JavaThread * thread, jint * ar1))
+
+  printf("This is the get\n");
+  return ht_search(ht, ar1);
+
+JRT_END
+
+JRT_ENTRY(void,
+          JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread * thread, const char *exception, const char *message))
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_klass_external_name_exception(JavaThread* thread, const char* exception, Klass* klass))
+JRT_ENTRY(void,
+          JVMCIRuntime::throw_klass_external_name_exception(JavaThread * thread, const char *exception, Klass*klass))
   ResourceMark rm(thread);
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, klass->external_name());
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_class_cast_exception(JavaThread* thread, const char* exception, Klass* caster_klass, Klass* target_klass))
+JRT_ENTRY(void, JVMCIRuntime::throw_class_cast_exception(JavaThread * thread, const char *exception, Klass*caster_klass,
+        Klass * target_klass))
   ResourceMark rm(thread);
-  const char* message = SharedRuntime::generate_class_cast_message(caster_klass, target_klass);
+  const char *message = SharedRuntime::generate_class_cast_message(caster_klass, target_klass);
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
 JRT_END
 
 class ArgumentPusher : public SignatureIterator {
- protected:
-  JavaCallArguments*  _jca;
-  jlong _argument;
-  bool _pushed;
+protected:
+    JavaCallArguments *_jca;
+    jlong _argument;
+    bool _pushed;
 
-  jlong next_arg() {
-    guarantee(!_pushed, "one argument");
-    _pushed = true;
-    return _argument;
-  }
+    jlong next_arg() {
+      guarantee(!_pushed, "one argument");
+      _pushed = true;
+      return _argument;
+    }
 
-  float next_float() {
-    guarantee(!_pushed, "one argument");
-    _pushed = true;
-    jvalue v;
-    v.i = (jint) _argument;
-    return v.f;
-  }
+    float next_float() {
+      guarantee(!_pushed, "one argument");
+      _pushed = true;
+      jvalue v;
+      v.i = (jint) _argument;
+      return v.f;
+    }
 
-  double next_double() {
-    guarantee(!_pushed, "one argument");
-    _pushed = true;
-    jvalue v;
-    v.j = _argument;
-    return v.d;
-  }
+    double next_double() {
+      guarantee(!_pushed, "one argument");
+      _pushed = true;
+      jvalue v;
+      v.j = _argument;
+      return v.d;
+    }
 
-  Handle next_object() {
-    guarantee(!_pushed, "one argument");
-    _pushed = true;
-    return Handle(Thread::current(), (oop) (address) _argument);
-  }
+    Handle next_object() {
+      guarantee(!_pushed, "one argument");
+      _pushed = true;
+      return Handle(Thread::current(), (oop) (address) _argument);
+    }
 
- public:
-  ArgumentPusher(Symbol* signature, JavaCallArguments*  jca, jlong argument) : SignatureIterator(signature) {
-    this->_return_type = T_ILLEGAL;
-    _jca = jca;
-    _argument = argument;
-    _pushed = false;
-    iterate();
-  }
+public:
+    ArgumentPusher(Symbol *signature, JavaCallArguments *jca, jlong argument) : SignatureIterator(signature) {
+      this->_return_type = T_ILLEGAL;
+      _jca = jca;
+      _argument = argument;
+      _pushed = false;
+      iterate();
+    }
 
-  inline void do_object() { _jca->push_oop(next_object()); }
+    inline void do_object() { _jca->push_oop(next_object()); }
 
-  inline void do_bool()   { if (!is_return_type()) _jca->push_int((jboolean) next_arg()); }
-  inline void do_char()   { if (!is_return_type()) _jca->push_int((jchar) next_arg()); }
-  inline void do_short()  { if (!is_return_type()) _jca->push_int((jint)  next_arg()); }
-  inline void do_byte()   { if (!is_return_type()) _jca->push_int((jbyte) next_arg()); }
-  inline void do_int()    { if (!is_return_type()) _jca->push_int((jint)  next_arg()); }
+    inline void do_bool() { if (!is_return_type()) _jca->push_int((jboolean) next_arg()); }
 
-  inline void do_long()   { if (!is_return_type()) _jca->push_long((jlong) next_arg()); }
-  inline void do_float()  { if (!is_return_type()) _jca->push_float(next_float()); }
-  inline void do_double() { if (!is_return_type()) _jca->push_double(next_double()); }
+    inline void do_char() { if (!is_return_type()) _jca->push_int((jchar) next_arg()); }
 
-  inline void do_object(int begin, int end) { if (!is_return_type()) do_object(); }
-  inline void do_array(int begin, int end)  { if (!is_return_type()) do_object(); }
+    inline void do_short() { if (!is_return_type()) _jca->push_int((jint) next_arg()); }
 
-  inline void do_void() { }
+    inline void do_byte() { if (!is_return_type()) _jca->push_int((jbyte) next_arg()); }
+
+    inline void do_int() { if (!is_return_type()) _jca->push_int((jint) next_arg()); }
+
+    inline void do_long() { if (!is_return_type()) _jca->push_long((jlong) next_arg()); }
+
+    inline void do_float() { if (!is_return_type()) _jca->push_float(next_float()); }
+
+    inline void do_double() { if (!is_return_type()) _jca->push_double(next_double()); }
+
+    inline void do_object(int begin, int end) { if (!is_return_type()) do_object(); }
+
+    inline void do_array(int begin, int end) { if (!is_return_type()) do_object(); }
+
+    inline void do_void() {}
 };
 
 
-JRT_ENTRY(jlong, JVMCIRuntime::invoke_static_method_one_arg(JavaThread* thread, Method* method, jlong argument))
+JRT_ENTRY(jlong, JVMCIRuntime::invoke_static_method_one_arg(JavaThread * thread, Method * method, jlong argument))
   ResourceMark rm;
   HandleMark hm;
 
   methodHandle mh(thread, method);
   if (mh->size_of_parameters() > 1 && !mh->is_static()) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Invoked method must be static and take at most one argument");
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
+                "Invoked method must be static and take at most one argument");
   }
 
-  Symbol* signature = mh->signature();
+  Symbol *signature = mh->signature();
   JavaCallArguments jca(mh->size_of_parameters());
   ArgumentPusher jap(signature, &jca, argument);
   BasicType return_type = jap.get_ret_type();
@@ -526,7 +787,7 @@ JRT_ENTRY(jlong, JVMCIRuntime::invoke_static_method_one_arg(JavaThread* thread, 
   }
 JRT_END
 
-JRT_LEAF(void, JVMCIRuntime::log_object(JavaThread* thread, oopDesc* obj, bool as_string, bool newline))
+JRT_LEAF(void, JVMCIRuntime::log_object(JavaThread * thread, oopDesc * obj, bool as_string, bool newline))
   ttyLocker ttyl;
 
   if (obj == NULL) {
@@ -551,37 +812,37 @@ JRT_END
 
 #if INCLUDE_G1GC
 
-JRT_LEAF(void, JVMCIRuntime::write_barrier_pre(JavaThread* thread, oopDesc* obj))
+JRT_LEAF(void, JVMCIRuntime::write_barrier_pre(JavaThread * thread, oopDesc * obj))
   G1ThreadLocalData::satb_mark_queue(thread).enqueue(obj);
 JRT_END
 
-JRT_LEAF(void, JVMCIRuntime::write_barrier_post(JavaThread* thread, void* card_addr))
+JRT_LEAF(void, JVMCIRuntime::write_barrier_post(JavaThread * thread, void * card_addr))
   G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
 JRT_END
 
 #endif // INCLUDE_G1GC
 
-JRT_LEAF(jboolean, JVMCIRuntime::validate_object(JavaThread* thread, oopDesc* parent, oopDesc* child))
+JRT_LEAF(jboolean, JVMCIRuntime::validate_object(JavaThread * thread, oopDesc * parent, oopDesc * child))
   bool ret = true;
-  if(!Universe::heap()->is_in_closed_subset(parent)) {
+  if (!Universe::heap()->is_in_closed_subset(parent)) {
     tty->print_cr("Parent Object " INTPTR_FORMAT " not in heap", p2i(parent));
     parent->print();
-    ret=false;
+    ret = false;
   }
-  if(!Universe::heap()->is_in_closed_subset(child)) {
+  if (!Universe::heap()->is_in_closed_subset(child)) {
     tty->print_cr("Child Object " INTPTR_FORMAT " not in heap", p2i(child));
     child->print();
-    ret=false;
+    ret = false;
   }
-  return (jint)ret;
+  return (jint) ret;
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::vm_error(JavaThread* thread, jlong where, jlong format, jlong value))
+JRT_ENTRY(void, JVMCIRuntime::vm_error(JavaThread * thread, jlong where, jlong format, jlong value))
   ResourceMark rm;
-  const char *error_msg = where == 0L ? "<internal JVMCI error>" : (char*) (address) where;
+  const char *error_msg = where == 0L ? "<internal JVMCI error>" : (char *) (address) where;
   char *detail_msg = NULL;
   if (format != 0L) {
-    const char* buf = (char*) (address) format;
+    const char *buf = (char *) (address) format;
     size_t detail_msg_length = strlen(buf) * 2;
     detail_msg = (char *) NEW_RESOURCE_ARRAY(u_char, detail_msg_length);
     jio_snprintf(detail_msg, detail_msg_length, buf, value);
@@ -591,7 +852,7 @@ JRT_ENTRY(void, JVMCIRuntime::vm_error(JavaThread* thread, jlong where, jlong fo
   }
 JRT_END
 
-JRT_LEAF(oopDesc*, JVMCIRuntime::load_and_clear_exception(JavaThread* thread))
+JRT_LEAF(oopDesc*, JVMCIRuntime::load_and_clear_exception(JavaThread * thread))
   oop exception = thread->exception_oop();
   assert(exception != NULL, "npe");
   thread->set_exception_oop(NULL);
@@ -601,20 +862,24 @@ JRT_END
 
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
-JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3))
+
+JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread * thread, const char *format, jlong v1, jlong v2, jlong v3))
   ResourceMark rm;
   tty->print(format, v1, v2, v3);
 JRT_END
+
 PRAGMA_DIAG_POP
 
 static void decipher(jlong v, bool ignoreZero) {
   if (v != 0 || !ignoreZero) {
-    void* p = (void *)(address) v;
-    CodeBlob* cb = CodeCache::find_blob(p);
+    void *p = (void *) (address) v;
+    CodeBlob *cb = CodeCache::find_blob(p);
     if (cb) {
       if (cb->is_nmethod()) {
         char buf[O_BUFLEN];
-        tty->print("%s [" INTPTR_FORMAT "+" JLONG_FORMAT "]", cb->as_nmethod_or_null()->method()->name_and_sig_as_C_string(buf, O_BUFLEN), p2i(cb->code_begin()), (jlong)((address)v - cb->code_begin()));
+        tty->print("%s [" INTPTR_FORMAT "+" JLONG_FORMAT "]",
+                   cb->as_nmethod_or_null()->method()->name_and_sig_as_C_string(buf, O_BUFLEN), p2i(cb->code_begin()),
+                   (jlong) ((address) v - cb->code_begin()));
         return;
       }
       cb->print_value_on(tty);
@@ -625,15 +890,17 @@ static void decipher(jlong v, bool ignoreZero) {
       obj->print_value_on(tty);
       return;
     }
-    tty->print(INTPTR_FORMAT " [long: " JLONG_FORMAT ", double %lf, char %c]",p2i((void *)v), (jlong)v, (jdouble)v, (char)v);
+    tty->print(INTPTR_FORMAT " [long: " JLONG_FORMAT ", double %lf, char %c]", p2i((void *) v), (jlong) v, (jdouble) v,
+               (char) v);
   }
 }
 
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
+
 JRT_LEAF(void, JVMCIRuntime::vm_message(jboolean vmError, jlong format, jlong v1, jlong v2, jlong v3))
   ResourceMark rm;
-  const char *buf = (const char*) (address) format;
+  const char *buf = (const char *) (address) format;
   if (vmError) {
     if (buf != NULL) {
       fatal(buf, v1, v2, v3);
@@ -648,9 +915,10 @@ JRT_LEAF(void, JVMCIRuntime::vm_message(jboolean vmError, jlong format, jlong v1
     decipher(v1, false);
   }
 JRT_END
+
 PRAGMA_DIAG_POP
 
-JRT_LEAF(void, JVMCIRuntime::log_primitive(JavaThread* thread, jchar typeChar, jlong value, jboolean newline))
+JRT_LEAF(void, JVMCIRuntime::log_primitive(JavaThread * thread, jchar typeChar, jlong value, jboolean newline))
   union {
       jlong l;
       jdouble d;
@@ -658,32 +926,51 @@ JRT_LEAF(void, JVMCIRuntime::log_primitive(JavaThread* thread, jchar typeChar, j
   } uu;
   uu.l = value;
   switch (typeChar) {
-    case 'Z': tty->print(value == 0 ? "false" : "true"); break;
-    case 'B': tty->print("%d", (jbyte) value); break;
-    case 'C': tty->print("%c", (jchar) value); break;
-    case 'S': tty->print("%d", (jshort) value); break;
-    case 'I': tty->print("%d", (jint) value); break;
-    case 'F': tty->print("%f", uu.f); break;
-    case 'J': tty->print(JLONG_FORMAT, value); break;
-    case 'D': tty->print("%lf", uu.d); break;
-    default: assert(false, "unknown typeChar"); break;
+    case 'Z':
+      tty->print(value == 0 ? "false" : "true");
+      break;
+    case 'B':
+      tty->print("%d", (jbyte) value);
+      break;
+    case 'C':
+      tty->print("%c", (jchar) value);
+      break;
+    case 'S':
+      tty->print("%d", (jshort) value);
+      break;
+    case 'I':
+      tty->print("%d", (jint) value);
+      break;
+    case 'F':
+      tty->print("%f", uu.f);
+      break;
+    case 'J':
+      tty->print(JLONG_FORMAT, value);
+      break;
+    case 'D':
+      tty->print("%lf", uu.d);
+      break;
+    default:
+      assert(false, "unknown typeChar");
+      break;
   }
   if (newline) {
     tty->cr();
   }
 JRT_END
 
-JRT_ENTRY(jint, JVMCIRuntime::identity_hash_code(JavaThread* thread, oopDesc* obj))
+JRT_ENTRY(jint, JVMCIRuntime::identity_hash_code(JavaThread * thread, oopDesc * obj))
   return (jint) obj->identity_hash();
 JRT_END
 
-JRT_ENTRY(jboolean, JVMCIRuntime::thread_is_interrupted(JavaThread* thread, oopDesc* receiver, jboolean clear_interrupted))
+JRT_ENTRY(jboolean,
+          JVMCIRuntime::thread_is_interrupted(JavaThread * thread, oopDesc * receiver, jboolean clear_interrupted))
   Handle receiverHandle(thread, receiver);
   // A nested ThreadsListHandle may require the Threads_lock which
   // requires thread_in_vm which is why this method cannot be JRT_LEAF.
   ThreadsListHandle tlh;
 
-  JavaThread* receiverThread = java_lang_Thread::thread(receiverHandle());
+  JavaThread *receiverThread = java_lang_Thread::thread(receiverHandle());
   if (receiverThread == NULL || (EnableThreadSMRExtraValidityChecks && !tlh.includes(receiverThread))) {
     // The other thread may exit during this process, which is ok so return false.
     return JNI_FALSE;
@@ -692,7 +979,7 @@ JRT_ENTRY(jboolean, JVMCIRuntime::thread_is_interrupted(JavaThread* thread, oopD
   }
 JRT_END
 
-JRT_ENTRY(int, JVMCIRuntime::test_deoptimize_call_int(JavaThread* thread, int value))
+JRT_ENTRY(int, JVMCIRuntime::test_deoptimize_call_int(JavaThread * thread, int value))
   deopt_caller();
   return value;
 JRT_END
@@ -709,7 +996,7 @@ void JVMCIRuntime::force_initialization(TRAPS) {
 }
 
 // private static JVMCIRuntime JVMCI.initializeRuntime()
-JVM_ENTRY(jobject, JVM_GetJVMCIRuntime(JNIEnv *env, jclass c))
+JVM_ENTRY(jobject, JVM_GetJVMCIRuntime(JNIEnv * env, jclass c))
   if (!EnableJVMCI) {
     THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), "JVMCI is not enabled")
   }
@@ -718,9 +1005,11 @@ JVM_ENTRY(jobject, JVM_GetJVMCIRuntime(JNIEnv *env, jclass c))
   return ret;
 JVM_END
 
-Handle JVMCIRuntime::callStatic(const char* className, const char* methodName, const char* signature, JavaCallArguments* args, TRAPS) {
+Handle
+JVMCIRuntime::callStatic(const char *className, const char *methodName, const char *signature, JavaCallArguments *args,
+                         TRAPS) {
   TempNewSymbol name = SymbolTable::new_symbol(className, CHECK_(Handle()));
-  Klass* klass = SystemDictionary::resolve_or_fail(name, true, CHECK_(Handle()));
+  Klass *klass = SystemDictionary::resolve_or_fail(name, true, CHECK_(Handle()));
   TempNewSymbol runtime = SymbolTable::new_symbol(methodName, CHECK_(Handle()));
   TempNewSymbol sig = SymbolTable::new_symbol(signature, CHECK_(Handle()));
   JavaValue result(T_OBJECT);
@@ -729,7 +1018,7 @@ Handle JVMCIRuntime::callStatic(const char* className, const char* methodName, c
   } else {
     JavaCalls::call_static(&result, klass, runtime, sig, args, CHECK_(Handle()));
   }
-  return Handle(THREAD, (oop)result.get_jobject());
+  return Handle(THREAD, (oop) result.get_jobject());
 }
 
 Handle JVMCIRuntime::get_HotSpotJVMCIRuntime(TRAPS) {
@@ -741,9 +1030,9 @@ void JVMCIRuntime::initialize_HotSpotJVMCIRuntime(TRAPS) {
   guarantee(!_HotSpotJVMCIRuntime_initialized, "cannot reinitialize HotSpotJVMCIRuntime");
   JVMCIRuntime::initialize_well_known_classes(CHECK);
   // This should only be called in the context of the JVMCI class being initialized
-  InstanceKlass* klass = SystemDictionary::JVMCI_klass();
+  InstanceKlass *klass = SystemDictionary::JVMCI_klass();
   guarantee(klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD),
-         "HotSpotJVMCIRuntime initialization should only be triggered through JVMCI initialization");
+            "HotSpotJVMCIRuntime initialization should only be triggered through JVMCI initialization");
 
   Handle result = callStatic("jdk/vm/ci/hotspot/HotSpotJVMCIRuntime",
                              "runtime",
@@ -788,17 +1077,20 @@ void JVMCIRuntime::initialize_well_known_classes(TRAPS) {
   }
 }
 
-void JVMCIRuntime::metadata_do(void f(Metadata*)) {
+void JVMCIRuntime::metadata_do(void f(Metadata *)) {
   // For simplicity, the existence of HotSpotJVMCIMetaAccessContext in
   // the SystemDictionary well known classes should ensure the other
   // classes have already been loaded, so make sure their order in the
   // table enforces that.
   assert(SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotResolvedJavaMethodImpl) <
-         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext), "must be loaded earlier");
+         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext),
+         "must be loaded earlier");
   assert(SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotConstantPool) <
-         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext), "must be loaded earlier");
+         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext),
+         "must be loaded earlier");
   assert(SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotResolvedObjectTypeImpl) <
-         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext), "must be loaded earlier");
+         SystemDictionary::WK_KLASS_ENUM_NAME(jdk_vm_ci_hotspot_HotSpotJVMCIMetaAccessContext),
+         "must be loaded earlier");
 
   if (HotSpotJVMCIMetaAccessContext::klass() == NULL ||
       !HotSpotJVMCIMetaAccessContext::klass()->is_linked()) {
@@ -835,20 +1127,20 @@ void JVMCIRuntime::metadata_do(void f(Metadata*)) {
               continue;
             }
             if (metadataRoot->is_a(SystemDictionary::HotSpotResolvedJavaMethodImpl_klass())) {
-              Method* method = CompilerToVM::asMethod(metadataRoot);
+              Method *method = CompilerToVM::asMethod(metadataRoot);
               f(method);
             } else if (metadataRoot->is_a(SystemDictionary::HotSpotConstantPool_klass())) {
-              ConstantPool* constantPool = CompilerToVM::asConstantPool(metadataRoot);
+              ConstantPool *constantPool = CompilerToVM::asConstantPool(metadataRoot);
               f(constantPool);
             } else if (metadataRoot->is_a(SystemDictionary::HotSpotResolvedObjectTypeImpl_klass())) {
-              Klass* klass = CompilerToVM::asKlass(metadataRoot);
+              Klass *klass = CompilerToVM::asKlass(metadataRoot);
               f(klass);
             } else {
               metadataRoot->print();
               ShouldNotReachHere();
             }
           }
-          metadataRoots = (objArrayOop)metadataRoots->obj_at(metadataRoots->length() - 1);
+          metadataRoots = (objArrayOop) metadataRoots->obj_at(metadataRoots->length() - 1);
           assert(metadataRoots == NULL || metadataRoots->is_objArray(), "wrong type");
         }
       }
@@ -857,7 +1149,7 @@ void JVMCIRuntime::metadata_do(void f(Metadata*)) {
 }
 
 // private static void CompilerToVM.registerNatives()
-JVM_ENTRY(void, JVM_RegisterJVMCINatives(JNIEnv *env, jclass c2vmClass))
+JVM_ENTRY(void, JVM_RegisterJVMCINatives(JNIEnv * env, jclass c2vmClass))
   if (!EnableJVMCI) {
     THROW_MSG(vmSymbols::java_lang_InternalError(), "JVMCI is not enabled");
   }
@@ -865,8 +1157,9 @@ JVM_ENTRY(void, JVM_RegisterJVMCINatives(JNIEnv *env, jclass c2vmClass))
 #ifdef _LP64
 #ifndef SPARC
   uintptr_t heap_end = (uintptr_t) Universe::heap()->reserved_region().end();
-  uintptr_t allocation_end = heap_end + ((uintptr_t)16) * 1024 * 1024 * 1024;
-  guarantee(heap_end < allocation_end, "heap end too close to end of address space (might lead to erroneous TLAB allocations)");
+  uintptr_t allocation_end = heap_end + ((uintptr_t) 16) * 1024 * 1024 * 1024;
+  guarantee(heap_end < allocation_end,
+            "heap end too close to end of address space (might lead to erroneous TLAB allocations)");
 #endif // !SPARC
 #else
   fatal("check TLAB allocation code for address space conflicts");
@@ -888,12 +1181,14 @@ void JVMCIRuntime::shutdown(TRAPS) {
     JavaValue result(T_VOID);
     JavaCallArguments args;
     args.push_oop(receiver);
-    JavaCalls::call_special(&result, receiver->klass(), vmSymbols::shutdown_method_name(), vmSymbols::void_method_signature(), &args, CHECK);
+    JavaCalls::call_special(&result, receiver->klass(), vmSymbols::shutdown_method_name(),
+                            vmSymbols::void_method_signature(), &args, CHECK);
   }
 }
 
-CompLevel JVMCIRuntime::adjust_comp_level_inner(const methodHandle& method, bool is_osr, CompLevel level, JavaThread* thread) {
-  JVMCICompiler* compiler = JVMCICompiler::instance(false, thread);
+CompLevel
+JVMCIRuntime::adjust_comp_level_inner(const methodHandle &method, bool is_osr, CompLevel level, JavaThread *thread) {
+  JVMCICompiler *compiler = JVMCICompiler::instance(false, thread);
   if (compiler != NULL && compiler->is_bootstrapping()) {
     return level;
   }
@@ -926,7 +1221,7 @@ CompLevel JVMCIRuntime::adjust_comp_level_inner(const methodHandle& method, bool
   (void)(0
 
 
-  Thread* THREAD = thread;
+  Thread *THREAD = thread;
   HandleMark hm;
   Handle receiver = JVMCIRuntime::get_HotSpotJVMCIRuntime(CHECK_RETURN);
   Handle name;
@@ -965,5 +1260,6 @@ void JVMCIRuntime::bootstrap_finished(TRAPS) {
   JavaValue result(T_VOID);
   JavaCallArguments args;
   args.push_oop(receiver);
-  JavaCalls::call_special(&result, receiver->klass(), vmSymbols::bootstrapFinished_method_name(), vmSymbols::void_method_signature(), &args, CHECK);
+  JavaCalls::call_special(&result, receiver->klass(), vmSymbols::bootstrapFinished_method_name(),
+                          vmSymbols::void_method_signature(), &args, CHECK);
 }

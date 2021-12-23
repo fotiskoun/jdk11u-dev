@@ -328,6 +328,39 @@ public class Object {
     @HotSpotIntrinsicCandidate
     public final native int fun(Object obj);
 
+    /**
+     * Causes the current thread to wait until it is awakened, typically
+     * by being <em>notified</em> or <em>interrupted</em>.
+     * <p>
+     * In all respects, this method behaves as if {@code wait(0L, 0)}
+     * had been called. See the specification of the {@link #wait(long, int)} method
+     * for details.
+     * @param   ar1   the reference object with which to compare.
+     * @param   ar2   the integer to add.
+     * @param   sizeK   the integer to add.
+     * @param   sizeVal   the integer to add.
+     * @return  {@code true} if this object is the same as the obj
+     * @see    #notify()
+     * @see    #notifyAll()
+     * @see    #wait(long)
+     * @see    #wait(long, int)
+     */
+    @HotSpotIntrinsicCandidate
+    public final native boolean hash_put(int[] ar1, int[] ar2, int sizeK, int sizeVal);
+
+    /**
+     * Causes the current thread to wait until it is awakened, typically
+     * by being <em>notified</em> or <em>interrupted</em>.
+     * <p>
+     * In all respects, this method behaves as if {@code wait(0L, 0)}
+     * had been called. See the specification of the {@link #wait(long, int)} method
+     * for details.
+     * @param   ar1   the reference object with which to compare.
+     * @return  double array of the value
+     */
+    @HotSpotIntrinsicCandidate
+    public final native int[] hash_get(int[] ar1);
+
 
     /**
      * Causes the current thread to wait until it is awakened, typically
