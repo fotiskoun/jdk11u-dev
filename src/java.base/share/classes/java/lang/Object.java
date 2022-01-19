@@ -359,7 +359,7 @@ public class Object {
      * @return  double array of the value
      */
     @HotSpotIntrinsicCandidate
-    public final native int[] hash_get(int[] ar1);
+    public final native void hash_get(int[] ar1);
 
 
     /**

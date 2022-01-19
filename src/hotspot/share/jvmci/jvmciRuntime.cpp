@@ -632,22 +632,34 @@ void print_search(HashTable *table, int *key) {
 }
 
 HashTable *ht = create_table(CAPACITY);
-
+jint valueArraySize=0;
 // Object.hash_put() fast path, caller does slow path
 JRT_LEAF(jboolean,
          JVMCIRuntime::object_hash_put(JavaThread * thread, jint * ar1, jint * ar2, jint sizeK, jint sizeVal))
+  valueArraySize = sizeVal;
 
-  printf("This is the put\n");
+//  printf("This is the put\n");
   return ht_insert(ht, ar1, ar2, sizeK, sizeVal);
 
 JRT_END
 
 // Object.hash_get() fast path, caller does slow path
-JRT_LEAF(jint*, JVMCIRuntime::object_hash_get(JavaThread * thread, jint * ar1))
+JRT_BLOCK_ENTRY(void , JVMCIRuntime::object_hash_get(JavaThread * thread, jint * ar1))
+  JRT_BLOCK;
+//  printf("This is the get\n");
 
-  printf("This is the get\n");
-  return ht_search(ht, ar1);
+  typeArrayOop obj;
+  obj = oopFactory::new_intArray(valueArraySize, CHECK);
 
+  int* valueArray = ht_search(ht, ar1);
+
+  for(int i=0; i < valueArraySize; i++){
+    obj->int_at_put(i, valueArray[i]);
+  }
+
+  thread-> set_vm_result(obj);
+
+  JRT_BLOCK_END;
 JRT_END
 
 JRT_ENTRY(void,

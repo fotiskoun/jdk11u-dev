@@ -757,7 +757,7 @@
   do_signature(int2_int_signature,        "(II)I")                                                                      \
   do_signature(long2_long_signature,      "(JJ)J")                                                                      \
   do_signature(iar2_int2_bool_signature,  "([I[III)Z")                                                                  \
-  do_signature(iar_iar_signature,         "([I)[I")                                                                     \
+  do_signature(iar_iar_signature,         "([I)V")                                                                     \
                                                                                                                         \
   do_intrinsic(_hash_put,                 java_lang_Object,       hash_put_name, iar2_int2_bool_signature,   F_R)       \
    do_name(     hash_put_name,                                   "hash_put")                                            \
